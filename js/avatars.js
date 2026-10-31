@@ -106,6 +106,9 @@ export function createAvatars(TEMPLE) {
     i, x: s.x, z: s.z, state: 'empty', id: null, name: '', url: '',
     age: 0, s: 0, bowManual: 0, bowAnim: null, phase: Math.random() * 10, joined: 0,
     sprite: null, canvas: null, tex: null, img: null, imgOk: false, token: 0,
+    // tư thế (Mục 4 điều khiển): vị trí hiện tại, hướng, đứng/quỳ, đi bộ, độ hiện
+    px: s.x, pz: s.z, yaw: 0, stand: 0, vis: 1, bobW: 0, sway: 0, busy: false, removeLater: false,
+    tagK: 1, tagY0: 0, trackHand: false, hand: new THREE.Vector3(),
   }));
   const byId = new Map();
   let joinCounter = 0;
@@ -129,7 +132,8 @@ export function createAvatars(TEMPLE) {
     mat.color.setScalar(CFG.TAG_BRIGHT);
     a.sprite = new THREE.Sprite(mat);
     const col = a.i % 6;
-    a.sprite.position.set(a.x, CFG.TAG_Y + (col % 2) * CFG.TAG_STAGGER, a.z);
+    a.tagY0 = CFG.TAG_Y + (col % 2) * CFG.TAG_STAGGER;
+    a.sprite.position.set(a.x, a.tagY0, a.z);
     a.sprite.renderOrder = 10 + Math.round((6 - a.z) * 2);   // hàng gần camera vẽ sau (nằm trên)
     a.sprite.visible = false;
     scene.add(a.sprite);
@@ -177,15 +181,20 @@ export function createAvatars(TEMPLE) {
   }
 
   /* ---------------- ma trận ---------------- */
-  const base = new THREE.Matrix4(), up = new THREE.Matrix4(), t1 = new THREE.Matrix4(), t2 = new THREE.Matrix4(), t3 = new THREE.Matrix4();
-  const P = new THREE.Vector3(), S = new THREE.Vector3(), QI = new THREE.Quaternion();
+  const base = new THREE.Matrix4(), up = new THREE.Matrix4(), lower = new THREE.Matrix4(), feetM = new THREE.Matrix4();
+  const t1 = new THREE.Matrix4(), t2 = new THREE.Matrix4(), t3 = new THREE.Matrix4(), t4 = new THREE.Matrix4(), sk = new THREE.Matrix4(), ft = new THREE.Matrix4();
+  const P = new THREE.Vector3(), S = new THREE.Vector3(), QY = new THREE.Quaternion(), AXY = new THREE.Vector3(0, 1, 0);
   function writeMatrices(a, s, bow, bob) {
-    const sc = Math.max(s, 0.0001);
-    P.set(a.x, 0, a.z); S.set(sc, sc, sc);
-    base.compose(P, QI, S);
-    t1.makeTranslation(0, CFG.HIP + bob, 0); t2.makeRotationX(-bow); t3.makeTranslation(0, -CFG.HIP, 0);
-    up.copy(base).multiply(t1).multiply(t2).multiply(t3);
-    mSkirt.setMatrixAt(a.i, base); mFeet.setMatrixAt(a.i, base);
+    const sc = Math.max(s * a.vis, 0.0001), st = a.stand;
+    P.set(a.px, 0, a.pz); S.set(sc, sc, sc); QY.setFromAxisAngle(AXY, a.yaw);
+    base.compose(P, QY, S);
+    // đứng dậy: áo dài ra và thu hẹp lại, bàn chân thu về dưới thân
+    sk.makeScale(1 - 0.15 * st, 1 + 0.9 * st, 1 - 0.15 * st); lower.copy(base).multiply(sk);
+    ft.makeTranslation(0, 0, -0.38 * st); feetM.copy(base).multiply(ft);
+    t1.makeTranslation(0, CFG.HIP + st * 0.5 + bob, 0); t2.makeRotationX(-bow); t4.makeRotationZ(a.sway); t3.makeTranslation(0, -CFG.HIP, 0);
+    up.copy(base).multiply(t1).multiply(t2).multiply(t4).multiply(t3);
+    if (a.trackHand) a.hand.set(0, 0.66, -0.34).applyMatrix4(up);
+    mSkirt.setMatrixAt(a.i, lower); mFeet.setMatrixAt(a.i, feetM);
     mUpper.setMatrixAt(a.i, up); mSkin.setMatrixAt(a.i, up); mHair.setMatrixAt(a.i, up);
   }
   function hideSeat(a) {
@@ -217,17 +226,18 @@ export function createAvatars(TEMPLE) {
       }
       let bowV = a.bowManual;
       if (a.bowAnim) {
-        a.bowAnim.t += dt;
-        const k = Math.floor(a.bowAnim.t / CFG.BOW_CYCLE);
-        if (k >= a.bowAnim.n) { a.bowAnim = null; }
-        else bowV = Math.max(bowV, bowCurve((a.bowAnim.t - k * CFG.BOW_CYCLE) / CFG.BOW_CYCLE));
+        const ba = a.bowAnim; ba.t += dt;
+        const k = Math.floor(ba.t / ba.cycle);
+        if (k >= ba.n) a.bowAnim = null;
+        else bowV = Math.max(bowV, bowCurve((ba.t - k * ba.cycle) / ba.cycle) * ba.amp);
       }
-      const breathe = Math.sin(t * 1.3 + a.phase) * 0.02;
-      const bob = Math.sin(t * 1.6 + a.phase) * 0.008;
+      const breathe = Math.sin(t * 1.3 + a.phase) * 0.02 * (1 - a.stand);
+      const bob = Math.sin(t * 1.6 + a.phase) * 0.008 + a.bobW;
       writeMatrices(a, a.s, bowV * CFG.MAX_BOW + breathe, bob);
       if (a.sprite && SHOW_TAGS) {
-        const k = Math.max(a.s, 0.0001);
-        a.sprite.scale.set(CFG.TAG_W * k, CFG.TAG_H * k, 1);
+        const k = Math.max(a.s * a.vis, 0.0001);
+        a.sprite.scale.set(CFG.TAG_W * k * a.tagK, CFG.TAG_H * k * a.tagK, 1);
+        a.sprite.position.set(a.px, a.tagY0 + a.stand * 0.5 + (a.tagK - 1) * 0.12, a.pz);
         a.sprite.material.opacity = Math.min(1, k);
       }
     }
@@ -240,7 +250,7 @@ export function createAvatars(TEMPLE) {
     for (const i of order) if (A[i].state === 'empty') return i;
     if (!CFG.REPLACE_OLDEST) return -1;
     let oldest = -1;
-    for (const a of A) if (a.state === 'in' && (oldest < 0 || a.joined < A[oldest].joined)) oldest = a.i;
+    for (const a of A) if (a.state === 'in' && !a.busy && (oldest < 0 || a.joined < A[oldest].joined)) oldest = a.i;
     if (oldest >= 0) { byId.delete(A[oldest].id); A[oldest].id = null; A[oldest].state = 'empty'; }
     return oldest;
   }
@@ -266,15 +276,18 @@ export function createAvatars(TEMPLE) {
       }
       const i = pickSeat(); if (i < 0) return -1;
       const a = A[i];
-      Object.assign(a, { id, name, url, state: 'in', age: 0, s: 0, bowManual: 0, bowAnim: null, joined: ++joinCounter });
+      Object.assign(a, { id, name, url, state: 'in', age: 0, s: 0, bowManual: 0, bowAnim: null, joined: ++joinCounter,
+        px: a.x, pz: a.z, yaw: 0, stand: 0, vis: 1, bobW: 0, sway: 0, busy: false, removeLater: false, tagK: 1, trackHand: false });
       byId.set(id, i);
-      style(a); ensureTag(a); drawTag(a); loadPicture(a, url);
+      style(a); ensureTag(a); a.sprite.position.set(a.x, a.tagY0, a.z); drawTag(a); loadPicture(a, url);
       a.sprite.visible = SHOW_TAGS; a.sprite.scale.set(0.0001, 0.0001, 1);
       return i;
     },
     remove(id) {
       id = String(id); const i = byId.get(id); if (i === undefined) return false;
-      const a = A[i]; byId.delete(id); a.state = 'out'; a.age = 0; return true;
+      const a = A[i]; byId.delete(id);
+      if (a.busy) { a.removeLater = true; return true; }   // đang đi lên bàn thờ: rời đi sau khi xong
+      a.state = 'out'; a.age = 0; return true;
     },
     has(id) { return byId.has(String(id)); },
     get(id) { const i = byId.get(String(id)); if (i === undefined) return null; const a = A[i]; return { seat: i, x: a.x, z: a.z, name: a.name, id: a.id }; },
@@ -282,8 +295,16 @@ export function createAvatars(TEMPLE) {
     count() { return byId.size; },
     clear() { [...byId.keys()].forEach(id => api.remove(id)); },
     setBow(id, v) { const i = byId.get(String(id)); if (i !== undefined) A[i].bowManual = Math.min(1, Math.max(0, v)); },
-    bow(id, times = 1) { const i = byId.get(String(id)); if (i !== undefined) A[i].bowAnim = { t: 0, n: times }; },
-    bowAll(times = 1) { byId.forEach(i => { A[i].bowAnim = { t: 0, n: times }; }); },
+    bow(id, times = 1, opts = {}) { const i = byId.get(String(id)); if (i !== undefined) api.bowRec(A[i], times, opts); },
+    bowAll(times = 1) { byId.forEach(i => api.bowRec(A[i], times, {})); },
+    bowRec(a, times = 1, { cycle = CFG.BOW_CYCLE, amp = 1 } = {}) { a.bowAnim = { t: 0, n: times, cycle, amp }; },
+    // --- dành cho Mục 4 (điều khiển trực tiếp 1 avatar) ---
+    ctl(id) { const i = byId.get(String(id)); return i === undefined ? null : A[i]; },
+    busy(a, on) {
+      a.busy = on;
+      if (a.sprite) a.sprite.renderOrder = on ? 100 : 10 + Math.round((6 - a.z) * 2);
+      if (!on && a.removeLater) { a.removeLater = false; a.state = 'out'; a.age = 0; }
+    },
     CFG,
   };
 

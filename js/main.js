@@ -1,4 +1,4 @@
-// main.js - Cảnh chùa 3D "Chùa Ảo 9 Sạch" (Mục 2 + gắn avatar Mục 3). Three.js + bloom.
+// main.js - Cảnh chùa 3D "Chùa Ảo 9 Sạch" (Mục 2 + avatar Mục 3 + quà Mục 4). Three.js + bloom.
 // Chỉnh nhanh: sửa các hằng số trong khối CONFIG ngay dưới đây.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -8,6 +8,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as T from './textures.js';
 import { createAvatars } from './avatars.js';
+import { createActions } from './actions.js';
+import { connectNet } from './net.js';
 
 /* ============================== CONFIG ============================== */
 const Q = new URLSearchParams(location.search);
@@ -17,6 +19,7 @@ const CAMERAS = {                                   // phím 1/2/3 đổi góc m
   wide:  { pos: [0, 5.4, 11.5], look: [0, 2.3, -9], fov: 50 },
   altar: { pos: [0, 2.8, -3.0], look: [0, 2.6, -11], fov: 50 },
   top:   { pos: [0, 12.5, 7.0], look: [0, 0.0, -4], fov: 50 },
+  worship: { pos: [0, 2.0, -0.5], look: [0, 1.45, -8.6], fov: 27 },   // zoom vào người đang lễ (Mục 4)
 };
 /* ==================================================================== */
 
@@ -137,35 +140,19 @@ mesh(new THREE.BoxGeometry(9.5, 0.3, 4.2), M.wood, 0, 0.15, BZ);
 mesh(new THREE.BoxGeometry(7.6, 0.3, 3.4), M.lacquerSm, 0, 0.45, BZ);
 mesh(new THREE.BoxGeometry(7.7, 0.05, 3.5), M.goldTrim, 0, 0.62, BZ);
 
-const buddha = new THREE.Group(); buddha.position.set(0, 0.65, BZ - 0.3); buddha.scale.setScalar(1.25); scene.add(buddha);
-for (let i = 0; i < 22; i++) {
-  const a = (i / 22) * T.TAU, p = mesh(new THREE.SphereGeometry(0.42, 12, 10), M.gold, Math.cos(a) * 1.95, 0.32, Math.sin(a) * 1.95, buddha);
-  p.scale.set(0.55, 0.55, 1.15); p.rotation.y = -a + Math.PI / 2; p.rotation.x = 0.3;
-}
-mesh(new THREE.CylinderGeometry(1.95, 2.1, 0.35, 32), M.gold, 0, 0.12, 0, buddha);
-const prof = [[0, 0.3], [1.75, 0.3], [1.85, 0.55], [1.6, 0.95], [1.15, 1.5], [0.98, 2.1], [0.98, 2.55], [0.72, 2.85], [0.4, 3.0], [0, 3.0]]
-  .map(([r, y]) => new THREE.Vector2(r, y));
-const body = mesh(new THREE.LatheGeometry(prof, 40), M.gold, 0, 0.1, 0, buddha); body.scale.z = 0.72;
-mesh(new THREE.CylinderGeometry(0.2, 0.27, 0.3, 16), M.gold, 0, 3.2, 0, buddha);
-const head = mesh(new THREE.SphereGeometry(0.5, 28, 22), M.gold, 0, 3.62, 0.02, buddha); head.scale.set(1, 1.15, 1.02);
-mesh(new THREE.SphereGeometry(0.24, 16, 12), M.gold, 0, 4.16, 0, buddha);
-mesh(new THREE.ConeGeometry(0.06, 0.2, 8), M.gold, 0, 4.42, 0, buddha);
-[-0.17, 0.17].forEach(ex => { const e = mesh(new THREE.SphereGeometry(1, 8, 6), M.dark, ex, 3.66, 0.47, buddha); e.scale.set(0.11, 0.022, 0.03); });
-const mouth = mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshStandardMaterial({ color: 0x7a2a18, roughness: 0.6 }), 0, 3.42, 0.5, buddha); mouth.scale.set(0.1, 0.025, 0.03);
-[-0.52, 0.52].forEach(ex => { const ear = mesh(new THREE.CapsuleGeometry(0.07, 0.4, 4, 8), M.gold, ex, 3.5, 0, buddha); ear.rotation.z = ex > 0 ? -0.1 : 0.1; });
-function limb(a, b, r) {
-  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), len = A.distanceTo(B);
-  const m = mesh(new THREE.CapsuleGeometry(r, Math.max(len - 2 * r, 0.01), 6, 12), M.gold, 0, 0, 0, buddha);
-  m.position.copy(A).add(B).multiplyScalar(0.5);
-  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize());
-}
-limb([0.95, 2.65, 0.05], [0.55, 1.55, 0.6], 0.26);
-limb([-0.95, 2.65, 0.05], [-0.55, 1.55, 0.6], 0.26);
-const lap = mesh(new THREE.SphereGeometry(1, 20, 14), M.gold, 0, 1.12, 0.7, buddha); lap.scale.set(1.5, 0.32, 0.8);
-const hands = mesh(new THREE.SphereGeometry(0.24, 14, 10), M.gold, 0, 1.55, 0.95, buddha); hands.scale.set(1.5, 0.6, 1);
+// Tượng Phật: dùng ảnh tượng thật (assets/phat.png, nền trong suốt) dựng thành tấm 2.5D, thay cho mô hình khối cũ.
+const STATUE_H = 6.6, STATUE_W = STATUE_H * (704 / 1098);
+const statueMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.02, depthWrite: true, fog: false, toneMapped: true });
+new THREE.TextureLoader().load('./assets/phat.png', tex => {
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  statueMat.map = tex; statueMat.needsUpdate = true; statue.visible = true;
+});
+const statue = mesh(new THREE.PlaneGeometry(STATUE_W, STATUE_H), statueMat, 0, 0.62 + STATUE_H / 2, BZ - 0.2);
+statue.visible = false;   // hiện khi ảnh tải xong
+statueMat.color.setScalar(1.15);
 
-const haloMat = new THREE.MeshBasicMaterial({ map: T.makeTex(T.texHalo()), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.8 });
-const halo = mesh(new THREE.PlaneGeometry(9.6, 9.6), haloMat, 0, 4.4, BZ - 1.6);
+const haloMat = new THREE.MeshBasicMaterial({ map: T.makeTex(T.texHalo()), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.5 });
+const halo = mesh(new THREE.PlaneGeometry(10.5, 10.5), haloMat, 0, 4.6, BZ - 1.0);
 glowSprite(0xffb050, 9, 0.22, 0, 3.6, BZ - 1.3);
 {
   const sp = new THREE.SpotLight(0xffe0b0, 110, 26, 0.55, 0.6, 2);
@@ -252,9 +239,9 @@ function fit() {
 addEventListener('resize', fit); fit();
 
 /* ------------------------------ camera ------------------------------ */
-const cur = { pos: new THREE.Vector3(...CAMERAS.wide.pos), look: new THREE.Vector3(...CAMERAS.wide.look) };
-const tgt = { pos: cur.pos.clone(), look: cur.look.clone() };
-function flyTo(name) { const c = CAMERAS[name]; if (!c) return; tgt.pos.set(...c.pos); tgt.look.set(...c.look); }
+const cur = { pos: new THREE.Vector3(...CAMERAS.wide.pos), look: new THREE.Vector3(...CAMERAS.wide.look), fov: CAMERAS.wide.fov };
+const tgt = { pos: cur.pos.clone(), look: cur.look.clone(), fov: CAMERAS.wide.fov };
+function flyTo(name) { const c = CAMERAS[name]; if (!c) return; tgt.pos.set(...c.pos); tgt.look.set(...c.look); tgt.fov = c.fov; }
 addEventListener('keydown', e => { if (e.key === '1') flyTo('wide'); if (e.key === '2') flyTo('altar'); if (e.key === '3') flyTo('top'); });
 
 /* ------------------------------ vòng lặp ------------------------------ */
@@ -264,12 +251,14 @@ let first = true;
 function tick() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   const k = 1 - Math.exp(-2.2 * dt);
-  cur.pos.lerp(tgt.pos, k); cur.look.lerp(tgt.look, k);
+  cur.pos.lerp(tgt.pos, k); cur.look.lerp(tgt.look, k); cur.fov += (tgt.fov - cur.fov) * k;
+  if (Math.abs(camera.fov - cur.fov) > 0.01) { camera.fov = cur.fov; camera.updateProjectionMatrix(); }
   camera.position.set(cur.pos.x + Math.sin(t * 0.17) * 0.28, cur.pos.y + Math.sin(t * 0.23) * 0.08, cur.pos.z);
   camera.lookAt(cur.look);
 
   halo.rotation.z = t * 0.03;
-  haloMat.opacity = 0.74 + Math.sin(t * 0.8) * 0.06;
+  haloMat.opacity = 0.48 + Math.sin(t * 0.8) * 0.05;
+  statueMat.color.setScalar(1.15 + Math.sin(t * 0.9) * 0.05);
   lights.forEach(l => { l.intensity = l.userData.base * (0.9 + Math.sin(t * 5 + l.userData.ph) * 0.06 + Math.sin(t * 11.3 + l.userData.ph) * 0.04); });
   flames.forEach((f, i) => { const s = 0.62 + Math.sin(t * 9 + i * 2) * 0.06 + Math.sin(t * 17 + i) * 0.04; f.scale.set(s, s * 1.35, 1); });
   lanterns.forEach((l, i) => { l.rotation.z = Math.sin(t * 0.7 + i) * 0.015; });
@@ -297,7 +286,10 @@ function tick() {
 tick();
 
 // Giao diện lập trình cho các mục sau (avatar, sự kiện quà TikTok)
-const TEMPLE = { THREE, scene, camera, renderer, seats, flyTo, AZ, BZ, TOP, hooks };
+const TEMPLE = { THREE, scene, camera, renderer, seats, flyTo, AZ, BZ, TOP, hooks, glowMap, bus: new EventTarget() };
 window.TEMPLE = TEMPLE;
 // Mục 3: avatar quỳ + bảng tên. Dùng: TEMPLE.avatars.add({ id, name, avatarUrl }) / .remove(id) / .bow(id, 3)
 TEMPLE.avatars = createAvatars(TEMPLE);
+// Mục 4: quà -> hành động, và nhận sự kiện từ server TikTok
+TEMPLE.actions = createActions(TEMPLE);
+TEMPLE.net = connectNet(TEMPLE);
