@@ -1,4 +1,4 @@
-// main.js - Cảnh chùa 3D "Chùa Ảo 9 Sạch" (Mục 2 + avatar Mục 3 + quà Mục 4). Three.js + bloom.
+// main.js - Cảnh chùa 3D "Chùa Ảo 9 Sạch" (Mục 2 + avatar Mục 3 + quà Mục 4 + nhạc/lời chúc). Three.js + bloom.
 // Chỉnh nhanh: sửa các hằng số trong khối CONFIG ngay dưới đây.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -10,6 +10,8 @@ import * as T from './textures.js';
 import { createAvatars } from './avatars.js';
 import { createActions } from './actions.js';
 import { connectNet } from './net.js';
+import { createMusic } from './music.js';
+import { createBlessings } from './loi-chuc.js';
 
 /* ============================== CONFIG ============================== */
 const Q = new URLSearchParams(location.search);
@@ -293,3 +295,6 @@ TEMPLE.avatars = createAvatars(TEMPLE);
 // Mục 4: quà -> hành động, và nhận sự kiện từ server TikTok
 TEMPLE.actions = createActions(TEMPLE);
 TEMPLE.net = connectNet(TEMPLE);
+// Mục 4 (bổ sung): nhạc Phật giáo tự sinh (không bản quyền) + câu cảm ơn/lời chúc khi có quà
+TEMPLE.music = createMusic(TEMPLE);
+TEMPLE.blessings = createBlessings(TEMPLE);
