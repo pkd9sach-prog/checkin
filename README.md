@@ -49,5 +49,15 @@ window.TEMPLE.avatars:
 - js/net.js: nhận sự kiện từ server (join, chat, gift, roster). TEMPLE.bus phát lại các sự kiện này và worship:start / worship:incense / worship:end cho Mục 5.
 - server.js: tiktok-live-connector + WebSocket + phục vụ file + tải hộ ảnh đại diện.
 
+## Nhạc Phật giáo (bổ sung Mục 4)
+- js/music.js: nhạc TỰ SINH bằng code (WebAudio), không dùng file mp3 nên không bản quyền. Có tiếng ngân trầm, hợp âm nền, giai điệu ngũ cung thưa, chuông xoay, chuông chùa, mõ; khi có người lễ thì có tiếng chuông nhỏ, chuông xoay và mõ.
+- Phím M: tắt/bật nhạc. ?music=0: tắt hẳn. ?vol=0.4: chỉnh to nhỏ (0..1).
+- Trình duyệt thường chặn tiếng cho đến khi bấm vào trang 1 lần (OBS/LIVE Studio thường không chặn). Trong OBS: tick "Control audio via OBS" ở Browser Source để nhạc vào luồng live.
+
+## Lời cảm ơn + lời chúc (bổ sung Mục 4)
+- js/loi-chuc.js: mỗi người tặng quà, khi cắm nhang và bắt đầu lạy, hiện đúng MỘT câu cảm ơn + chúc, có tên người tặng.
+- 3 nhóm: quà thường, quà hoa (tên quà có hoa/rose/lotus...), quà lớn (từ 1000 kim cương). Xáo bài nên không lặp liên tiếp. Sửa câu ngay trong file (3 danh sách đầu).
+- Phím H: thử quà hoa. ?loichuc=0: tắt. ?capy=0.6: đổi độ cao phụ đề. ?voice=1: đọc thành tiếng nếu máy có giọng tiếng Việt.
+
 ## Tượng Phật
 Tượng dùng ảnh assets/phat.png (nền trong suốt). Muốn đổi tượng: thay file này bằng ảnh PNG nền trong suốt khác (giữ tên phat.png, tỉ lệ rộng/cao đổi ở STATUE_W trong main.js).
