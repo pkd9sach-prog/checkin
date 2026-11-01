@@ -1,8 +1,10 @@
 // avatars.js - Mục 3: Avatar chibi quỳ + bảng tên người xem (tối đa 78 chỗ).
-// Nhẹ: toàn bộ 78 avatar vẽ bằng 5 InstancedMesh (5 lượt vẽ), mỗi bảng tên là 1 sprite.
+// Nhẹ: toàn bộ 78 avatar vẽ bằng 8 InstancedMesh (nam/nữ khác dáng áo + tóc), mỗi bảng tên là 1 sprite.
+// Giới tính (nam/nữ) được đoán từ tên bằng js/gioi-tinh.js; nữ: tóc dài + búi, áo xoè; nam: tóc ngắn, vai rộng.
 // Chỉnh nhanh: sửa các hằng số trong khối CONFIG ngay dưới đây.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { doanGioiTinh } from './gioi-tinh.js';
 
 /* ============================== CONFIG ============================== */
 const CFG = {
@@ -27,6 +29,7 @@ const CFG = {
 const TAU = Math.PI * 2;
 const Q = new URLSearchParams(location.search);
 const SHOW_TAGS = Q.get('tags') !== '0';           // ?tags=0 -> ẩn bảng tên
+const SHOW_G = Q.get('gt') === '1';                // ?gt=1 -> thêm ký hiệu ♂/♀ trước tên để kiểm tra việc đoán giới tính
 
 /* ------------------------------ tiện ích ------------------------------ */
 const smooth = x => x * x * (3 - 2 * x);
@@ -48,30 +51,45 @@ function limbGeo(a, b, r) {
 /* --------------------------- hình dạng chibi --------------------------- */
 // Avatar nhìn về -z (hướng bàn thờ). Camera ở +z nên thấy lưng avatar.
 function buildGeometries() {
-  // Phần dưới (không cúi): váy áo quỳ + bàn chân
-  const prof = [[0, 0.1], [0.36, 0.1], [0.41, 0.2], [0.37, 0.34], [0.29, 0.46], [0.22, 0.52], [0, 0.52]].map(([r, y]) => new THREE.Vector2(r, y));
-  const skirt = place(new THREE.LatheGeometry(prof, 28), 0, 0, 0, 1, 1, 0.95);
+  // Chân (dùng chung)
   const feet = mergeGeometries([
     place(new THREE.SphereGeometry(1, 10, 8), -0.11, 0.15, 0.44, 0.085, 0.05, 0.17),
     place(new THREE.SphereGeometry(1, 10, 8), 0.11, 0.15, 0.44, 0.085, 0.05, 0.17),
   ]);
-  // Phần trên (cúi quanh khớp hông): thân + tay áo, đầu + tay, tóc
-  const upper = mergeGeometries([
-    place(new THREE.CapsuleGeometry(0.21, 0.34, 4, 12), 0, 0.66, 0, 1, 1, 0.85),
-    limbGeo([-0.25, 0.92, 0], [-0.1, 0.64, -0.24], 0.105),
-    limbGeo([0.25, 0.92, 0], [0.1, 0.64, -0.24], 0.105),
-  ]);
+  // Đầu + cổ + hai bàn tay (dùng chung)
   const skin = mergeGeometries([
     place(new THREE.SphereGeometry(0.27, 20, 16), 0, 1.17, 0, 1, 1, 0.96),
     place(new THREE.CylinderGeometry(0.07, 0.08, 0.14, 8), 0, 0.98, 0),
     place(new THREE.SphereGeometry(0.06, 10, 8), -0.06, 0.62, -0.3),
     place(new THREE.SphereGeometry(0.06, 10, 8), 0.06, 0.62, -0.3),
   ]);
-  const hair = mergeGeometries([
-    place(new THREE.SphereGeometry(0.285, 20, 16), 0, 1.22, 0.07, 1, 0.93, 1),
-    place(new THREE.SphereGeometry(0.1, 10, 8), 0, 1.42, 0.16),
+  // Phần dưới (không cúi): váy áo quỳ. Nam: thẳng hơn; nữ: xoè hơn
+  const lower = male => {
+    const k = male ? 0.93 : 1.09;
+    const prof = [[0, 0.1], [0.36, 0.1], [0.41, 0.2], [0.37, 0.34], [0.29, 0.46], [0.22, 0.52], [0, 0.52]].map(([r, y]) => new THREE.Vector2(r * k, y));
+    return place(new THREE.LatheGeometry(prof, 28), 0, 0, 0, 1, 1, 0.95);
+  };
+  // Phần trên (cúi quanh khớp hông): thân + tay áo. Nam: vai rộng, thân to; nữ: nhỏ nhắn
+  const upper = male => {
+    const tr = male ? 0.235 : 0.188, tl = male ? 0.36 : 0.32, sw = male ? 0.275 : 0.225, sr = male ? 0.115 : 0.096;
+    return mergeGeometries([
+      place(new THREE.CapsuleGeometry(tr, tl, 4, 12), 0, 0.66, 0, 1, 1, 0.85),
+      limbGeo([-sw, 0.92, 0], [-0.1, 0.64, -0.24], sr),
+      limbGeo([sw, 0.92, 0], [0.1, 0.64, -0.24], sr),
+    ]);
+  };
+  // Tóc (mặt quay về -z, camera thấy phía sau đầu ở +z). Nam: ngắn, gọn. Nữ: dài xuống lưng + búi + mái
+  const hairM = mergeGeometries([
+    place(new THREE.SphereGeometry(0.28, 20, 16), 0, 1.21, 0.06, 1, 0.92, 1),
+    place(new THREE.SphereGeometry(0.2, 12, 10), 0, 1.33, -0.07, 1, 0.5, 0.9),
   ]);
-  return { skirt, feet, upper, skin, hair };
+  const hairF = mergeGeometries([
+    place(new THREE.SphereGeometry(0.292, 20, 16), 0, 1.22, 0.075, 1, 0.95, 1),
+    place(new THREE.SphereGeometry(0.105, 10, 8), 0, 1.44, 0.14),
+    place(new THREE.SphereGeometry(1, 14, 10), 0, 0.98, 0.2, 0.21, 0.36, 0.1),
+    place(new THREE.SphereGeometry(1, 12, 8), 0, 1.36, -0.17, 0.2, 0.07, 0.1),
+  ]);
+  return { feet, skin, skirtM: lower(true), skirtF: lower(false), upperM: upper(true), upperF: upper(false), hairM, hairF };
 }
 
 /* ------------------------------ chính ------------------------------ */
@@ -92,18 +110,23 @@ export function createAvatars(TEMPLE) {
     scene.add(m);
     return m;
   }
-  const mSkirt = inst(G.skirt, matRobe);
+  // mỗi bộ phận có bản nam ('nam') và bản nữ ('nu'); mỗi chỗ ngồi chỉ dùng 1 bản, bản kia thu về kích thước 0
+  const mSkirt = { nam: inst(G.skirtM, matRobe), nu: inst(G.skirtF, matRobe) };
+  const mUpper = { nam: inst(G.upperM, matRobe), nu: inst(G.upperF, matRobe) };
+  const mHair = { nam: inst(G.hairM, matHair), nu: inst(G.hairF, matHair) };
   const mFeet = inst(G.feet, matFeet);
-  const mUpper = inst(G.upper, matRobe);
   const mSkin = inst(G.skin, matSkin);
-  const mHair = inst(G.hair, matHair);
-  const all = [mSkirt, mFeet, mUpper, mSkin, mHair];
+  const colored = [mSkirt.nam, mSkirt.nu, mUpper.nam, mUpper.nu, mHair.nam, mHair.nu, mSkin];
+  const gendered = [mSkirt.nam, mSkirt.nu, mUpper.nam, mUpper.nu, mHair.nam, mHair.nu];
+  const all = [...gendered, mFeet, mSkin];
   const white = new THREE.Color(1, 1, 1);
-  [mSkirt, mUpper, mSkin, mHair].forEach(m => { for (let i = 0; i < N; i++) m.setColorAt(i, white); m.instanceColor.needsUpdate = true; });
+  colored.forEach(m => { for (let i = 0; i < N; i++) m.setColorAt(i, white); m.instanceColor.needsUpdate = true; });
+  const ZERO = new THREE.Matrix4().makeScale(0.0001, 0.0001, 0.0001);
+  const zeroSeat = i => gendered.forEach(m => m.setMatrixAt(i, ZERO));   // cất cả 2 bản nam/nữ của chỗ i
 
   /* ---------------- dữ liệu từng chỗ ---------------- */
   const A = seats.map((s, i) => ({
-    i, x: s.x, z: s.z, state: 'empty', id: null, name: '', url: '',
+    i, x: s.x, z: s.z, state: 'empty', id: null, name: '', url: '', g: 'nam', gChac: true,
     age: 0, s: 0, bowManual: 0, bowAnim: null, phase: Math.random() * 10, joined: 0,
     sprite: null, canvas: null, tex: null, img: null, imgOk: false, token: 0,
     // tư thế (Mục 4 điều khiển): vị trí hiện tại, hướng, đứng/quỳ, đi bộ, độ hiện
@@ -157,7 +180,7 @@ export function createAvatars(TEMPLE) {
     g.lineWidth = 4; g.strokeStyle = '#f4d27a'; g.beginPath(); g.arc(66, 64, 46, 0, TAU); g.stroke();
     // tên (tự thu nhỏ chữ, quá dài thì cắt và thêm "…")
     const x0 = 128, maxW = W - x0 - 30;
-    let size = 54, text = a.name || '?';
+    let size = 54, text = (SHOW_G ? (a.g === 'nu' ? '♀ ' : '♂ ') : '') + (a.name || '?');
     g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = '#fff3d6';
     const setFont = s => { g.font = `700 ${s}px "Segoe UI", system-ui, sans-serif`; };
     setFont(size);
@@ -194,14 +217,15 @@ export function createAvatars(TEMPLE) {
     t1.makeTranslation(0, CFG.HIP + st * 0.5 + bob, 0); t2.makeRotationX(-bow); t4.makeRotationZ(a.sway); t3.makeTranslation(0, -CFG.HIP, 0);
     up.copy(base).multiply(t1).multiply(t2).multiply(t4).multiply(t3);
     if (a.trackHand) a.hand.set(0, 0.66, -0.34).applyMatrix4(up);
-    mSkirt.setMatrixAt(a.i, lower); mFeet.setMatrixAt(a.i, feetM);
-    mUpper.setMatrixAt(a.i, up); mSkin.setMatrixAt(a.i, up); mHair.setMatrixAt(a.i, up);
+    const gk = a.g === 'nu' ? 'nu' : 'nam';
+    mSkirt[gk].setMatrixAt(a.i, lower); mFeet.setMatrixAt(a.i, feetM);
+    mUpper[gk].setMatrixAt(a.i, up); mSkin.setMatrixAt(a.i, up); mHair[gk].setMatrixAt(a.i, up);
   }
   function hideSeat(a) {
     writeMatrices(a, 0, 0, 0);
     if (a.sprite) a.sprite.visible = false;
   }
-  A.forEach(hideSeat);
+  A.forEach(a => { zeroSeat(a.i); hideSeat(a); });
   all.forEach(m => { m.instanceMatrix.needsUpdate = true; });
 
   /* ---------------- vòng cập nhật mỗi khung hình ---------------- */
@@ -256,11 +280,19 @@ export function createAvatars(TEMPLE) {
   }
   function style(a) {
     const h = hash(String(a.id));
-    const tint = 0.92 + ((h >> 3) % 17) / 100;                       // áo hơi đậm nhạt khác nhau
-    mSkirt.setColorAt(a.i, new THREE.Color(tint, tint, tint)); mUpper.setColorAt(a.i, new THREE.Color(tint, tint, tint));
+    // áo xám xanh: nam đậm hơn một chút, nữ sáng hơn một chút
+    const tint = a.g === 'nu' ? 1.0 + ((h >> 3) % 13) / 100 : 0.84 + ((h >> 3) % 13) / 100;
+    const gk = a.g === 'nu' ? 'nu' : 'nam', col = new THREE.Color(tint, tint, tint);
+    mSkirt[gk].setColorAt(a.i, col); mUpper[gk].setColorAt(a.i, col);
     mSkin.setColorAt(a.i, new THREE.Color(CFG.SKIN[h % CFG.SKIN.length]));
-    mHair.setColorAt(a.i, new THREE.Color(CFG.HAIR[(h >> 5) % CFG.HAIR.length]));
-    [mSkirt, mUpper, mSkin, mHair].forEach(m => { m.instanceColor.needsUpdate = true; });
+    mHair[gk].setColorAt(a.i, new THREE.Color(CFG.HAIR[(h >> 5) % CFG.HAIR.length]));
+    colored.forEach(m => { m.instanceColor.needsUpdate = true; });
+  }
+  function decideGender(user, id, name) {
+    const forced = String(user.gender ?? '').toLowerCase();
+    if (/^(nu|nữ|female|f|girl)$/.test(forced)) return { g: 'nu', chac: true, diem: 9 };
+    if (/^(nam|male|m|boy)$/.test(forced)) return { g: 'nam', chac: true, diem: -9 };
+    return doanGioiTinh(name, id);
   }
 
   const api = {
@@ -279,6 +311,9 @@ export function createAvatars(TEMPLE) {
       Object.assign(a, { id, name, url, state: 'in', age: 0, s: 0, bowManual: 0, bowAnim: null, joined: ++joinCounter,
         px: a.x, pz: a.z, yaw: 0, stand: 0, vis: 1, bobW: 0, sway: 0, busy: false, removeLater: false, tagK: 1, trackHand: false });
       byId.set(id, i);
+      const gi = decideGender(user, id, name); a.g = gi.g; a.gChac = gi.chac;
+      if (Q.get('debug') === '1') console.log(`[giới tính] ${name} -> ${a.g} (điểm ${gi.diem.toFixed(1)}${gi.chac ? '' : ', đoán theo mã băm'})`);
+      zeroSeat(i);
       style(a); ensureTag(a); a.sprite.position.set(a.x, a.tagY0, a.z); drawTag(a); loadPicture(a, url);
       a.sprite.visible = SHOW_TAGS; a.sprite.scale.set(0.0001, 0.0001, 1);
       return i;
@@ -291,7 +326,14 @@ export function createAvatars(TEMPLE) {
     },
     has(id) { return byId.has(String(id)); },
     get(id) { const i = byId.get(String(id)); if (i === undefined) return null; const a = A[i]; return { seat: i, x: a.x, z: a.z, name: a.name, id: a.id }; },
-    list() { return A.filter(a => a.state === 'in').map(a => ({ seat: a.i, id: a.id, name: a.name })); },
+    list() { return A.filter(a => a.state === 'in').map(a => ({ seat: a.i, id: a.id, name: a.name, gender: a.g })); },
+    gender(id) { const i = byId.get(String(id)); return i === undefined ? null : A[i].g; },
+    // đổi giới tính thủ công: TEMPLE.avatars.setGender('id', 'nam' | 'nu')
+    setGender(id, g) {
+      const i = byId.get(String(id)); if (i === undefined) return false;
+      const a = A[i]; a.g = /^(nu|nữ|female|f)$/i.test(g) ? 'nu' : 'nam'; a.gChac = true;
+      zeroSeat(i); style(a); drawTag(a); return true;
+    },
     count() { return byId.size; },
     clear() { [...byId.keys()].forEach(id => api.remove(id)); },
     setBow(id, v) { const i = byId.get(String(id)); if (i !== undefined) A[i].bowManual = Math.min(1, Math.max(0, v)); },
@@ -309,7 +351,7 @@ export function createAvatars(TEMPLE) {
   };
 
   /* ---------------- phím thử nghiệm ---------------- */
-  const FAKE = ['Ngọc Lễ', 'Hoàng Anh', 'Minh Châu', 'Bé Mít', 'Thu Trang', 'Quốc Anh', 'Duy Bùi', 'Mỹ Đình', 'Lan Hương', 'Tuấn Kiệt', 'An Nhiên', 'Phú Bà Bình Dương', 'Khánh Ngọc', 'Cậu bé mắt đẹp', 'Hà My', 'Nguyễn Văn Thành Đạt'];
+  const FAKE = ['Ngọc Lễ', 'Hoàng Anh', 'Minh Châu', 'Bé Mít', 'Thu Trang', 'Quốc Anh', 'Duy Bùi', 'Mỹ Đình', 'Lan Hương', 'Tuấn Kiệt', 'An Nhiên', 'Phú Bà Bình Dương', 'Khánh Ngọc', 'Sói Đơn Độc', 'Hà My', 'Boss Hùng', 'Bé Bống', 'Mạnh Cường', 'Kitty Pink', 'Thỏ Con', 'Nguyễn Văn Thành Đạt', 'Hải Long'];
   let fakeN = 0;
   const addFake = () => { fakeN++; return api.add({ id: 'demo' + fakeN, name: FAKE[fakeN % FAKE.length] + (fakeN > FAKE.length ? ' ' + fakeN : '') }); };
   addEventListener('keydown', e => {

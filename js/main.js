@@ -1,4 +1,4 @@
-// main.js - Cảnh chùa 3D "Chùa Ảo 9 Sạch" (Mục 2 + avatar Mục 3 + quà Mục 4 + nhạc/lời chúc). Three.js + bloom.
+// main.js - Cảnh chùa 3D "Chùa Ảo 9 Sạch" (Mục 2 + avatar Mục 3 + quà Mục 4 + nhạc/lời chúc + HUD Mục 5). Three.js + bloom.
 // Chỉnh nhanh: sửa các hằng số trong khối CONFIG ngay dưới đây.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -12,6 +12,7 @@ import { createActions } from './actions.js';
 import { connectNet } from './net.js';
 import { createMusic } from './music.js';
 import { createBlessings } from './loi-chuc.js';
+import { createHud } from './hud.js';
 
 /* ============================== CONFIG ============================== */
 const Q = new URLSearchParams(location.search);
@@ -298,3 +299,5 @@ TEMPLE.net = connectNet(TEMPLE);
 // Mục 4 (bổ sung): nhạc Phật giáo tự sinh (không bản quyền) + câu cảm ơn/lời chúc khi có quà
 TEMPLE.music = createMusic(TEMPLE);
 TEMPLE.blessings = createBlessings(TEMPLE);
+// Mục 5: HUD (banner, bảng vàng công đức, lời cầu, banner quà lớn)
+TEMPLE.hud = createHud(TEMPLE);
