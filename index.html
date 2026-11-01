@@ -3,26 +3,212 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chùa Ảo 9 Sạch - Cảnh 3D + Avatar</title>
-<style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
-  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  canvas { display: block; }
-  #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #e8c98a; letter-spacing: .3em; font-size: 12px; background: #050202; z-index: 5; }
-  #hint { position: fixed; left: 10px; bottom: 8px; color: rgba(232,201,138,.45); font-size: 11px; z-index: 4; pointer-events: none; }
-</style>
+<title>Diệu Giang Tự — Nơi tĩnh lặng soi thấu điều chưa thấy</title>
+<meta name="description" content="Diệu Giang Tự: hành trình bảy chương qua một ngôi chùa Việt trên núi về đêm. Lịch vạn niên, tử vi, bát tự, thần số học, tướng số và chùa online. Nội dung mang tính tham khảo và chiêm nghiệm văn hóa.">
+<meta name="theme-color" content="#06070d">
+<meta property="og:type" content="website"><meta property="og:locale" content="vi_VN">
+<meta property="og:title" content="Diệu Giang Tự — chùa Việt 3D, lịch vạn niên, bát tự, thần số học">
+<meta property="og:description" content="Hành trình bảy chương qua một ngôi chùa Việt trên núi về đêm. Nội dung mang tính tham khảo và chiêm nghiệm văn hóa.">
+<meta property="og:url" content="https://tp9sach-ops.github.io/loinhuan.github.io/"><meta property="og:image" content="https://tp9sach-ops.github.io/loinhuan.github.io/assets/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://tp9sach-ops.github.io/loinhuan.github.io/assets/og.png">
+<link rel="canonical" href="https://tp9sach-ops.github.io/loinhuan.github.io/">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2306070d'/%3E%3Ccircle cx='16' cy='13' r='7' fill='%23d9b25f'/%3E%3Cpath d='M3 24h26M7 20h18' stroke='%23e8eaf2' stroke-width='2'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- subset=vietnamese + latin-ext được Google Fonts tự chọn theo unicode-range -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500&family=Cormorant+Garamond:wght@400;500;600&display=swap&subset=vietnamese,latin-ext">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/fg.css">
+<link rel="stylesheet" href="css/stage.css">
+
 <script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"
+  }
+}
 </script>
 </head>
 <body>
-<div id="stage"></div>
-<div id="loading">ĐANG DỰNG CHÙA...</div>
-<div id="hint">Phím 1/2/3: góc máy · A: thêm người xem · D: bớt · B: tất cả lạy · C: xoá hết · G: quà thường · H: quà hoa · M: tắt/bật nhạc · L: lời cầu · ?demo=40 · ?gt=1 (hiện ♂/♀) · ?full=1 · ?debug=1</div>
-<script>if (new URLSearchParams(location.search).get("hint") === "0") document.getElementById("hint").remove();</script>
-<script type="module" src="./js/main.js"></script>
+<a class="skip" href="#top">Bỏ qua, tới nội dung</a>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="vignette"></div>
+<div id="grain"></div>
+
+<!-- ============================================================ preloader -->
+<div id="pre">
+  <div class="pre-in">
+    <div class="pre-han">DIỆU GIANG TỰ</div>
+    <div class="pre-bar"><i id="pre-fill"></i></div>
+    <div class="pre-meta"><span>Đang thắp đèn chùa</span><b><span id="pre-pct">0</span>%</b></div>
+  </div>
+</div>
+
+<!-- ============================================================ nav -->
+<header class="nav" id="nav">
+  <a class="brand" href="#hero">
+    <svg viewBox="0 0 44 44" fill="none" aria-hidden="true">
+      <circle cx="22" cy="17" r="8" fill="#d9b25f"/>
+      <path d="M4 33h36M9 28h26M14 23h16" stroke="#e8eaf2" stroke-width="1.5"/>
+    </svg>
+    <span class="brand-tx"><b>DIỆU GIANG TỰ</b><i>CHÙA VIỆT · ĐÊM TRÊN NÚI</i></span>
+  </a>
+  <nav class="nav-links" id="navlinks">
+    <a class="nav-link" href="#today">Hôm nay</a>
+    <a class="nav-link" href="#fortune">Vận trình</a>
+    <a class="nav-link" href="#charts">Lá số</a>
+    <a class="nav-link" href="#reading">Tướng số</a>
+    <a class="nav-link" href="#temple">Chùa online</a>
+    <a class="nav-link" href="#summary">Tổng kết</a>
+  </nav>
+  <button class="nav-burger" id="burger" aria-label="Mở menu" aria-expanded="false"><i></i><i></i></button>
+</header>
+
+<!-- Tiền cảnh: cây cỏ, đá, đồi là ảnh WebP nguồn ngoài; tường chùa vàng, đèn lồng trụ đá, tháp gạch là SVG kiểu chùa Việt (assets/fg/). Chỉ bảng đang mở mới hiện bộ ảnh của nó. js/fg.js điều khiển. -->
+<div id="fg-sky" aria-hidden="true">
+  <div class="fg" data-fg="gate">
+    <span class="fg-el fg-wall" data-fg-in="left"><img src="assets/fg/tuong-chua.svg" alt="" width="1536" height="620" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-pine" data-fg-in="right"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/pine-tree.webp" alt="" width="1024" height="1438" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-grass" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/tall-grass.webp" alt="" width="1717" height="916" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+  </div>
+  <div class="fg" data-fg="pathways">
+    <span class="fg-el fg-sakura fg-el--sway" data-fg-in="left"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/sakura-branch.webp" alt="" width="1536" height="1024" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-leaves fg-el--sway" data-fg-in="right"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/maple-leaves.webp" alt="" width="1536" height="1024" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-lantern" data-fg-in="up"><img src="assets/fg/den-long.svg" alt="" width="400" height="900" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-bush" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/garden-bush.webp" alt="" width="1717" height="876" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+  </div>
+  <div class="fg" data-fg="lessons">
+    <span class="fg-el fg-wall fg-el--flip" data-fg-in="right"><img src="assets/fg/tuong-chua.svg" alt="" width="1536" height="620" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-stones" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/basalt-stones.webp" alt="" width="1536" height="996" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-grass" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/tall-grass.webp" alt="" width="1717" height="916" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+  </div>
+  <div class="fg" data-fg="eternity">
+    <span class="fg-el fg-hill" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/hill.webp" alt="" width="1774" height="887" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-ruins" data-fg-in="left"><img src="assets/fg/thap-chua.svg" alt="" width="700" height="894" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-grass" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/tall-grass.webp" alt="" width="1717" height="916" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-sakura" data-fg-in="left"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/sakura-branch.webp" alt="" width="1536" height="1024" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+  </div>
+  <div class="fg" data-fg="foot">
+    <span class="fg-el fg-bush" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/garden-bush.webp" alt="" width="1717" height="876" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-grass" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/tall-grass.webp" alt="" width="1717" height="916" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+    <span class="fg-el fg-stones" data-fg-in="up"><img crossorigin="anonymous" src="https://ublctyddhtbgaersvxxb.supabase.co/storage/v1/object/public/threeui-media/scene-images/35388445965f970fa28af333/basalt-stones.webp" alt="" width="1536" height="996" loading="lazy" decoding="async" onerror="this.style.display='none'"></span>
+  </div>
+</div>
+
+<!-- Điểm sáng bấm được trong cảnh 3D (js/scene/hotspots.js tạo nút) -->
+<div id="hotspots"></div>
+<div class="rail" id="rail" aria-hidden="true"></div>
+<button class="sound" id="sound" aria-pressed="false" aria-label="Bật âm thanh nền"><span class="sound-ic"></span><span class="sound-tx">Âm thanh</span></button>
+
+<main class="page" id="top">
+
+<!-- ============================================================ 0 · hero -->
+<section class="hero" id="hero" data-cam="0">
+  <div class="hero-top">
+    <div class="eyebrow" data-rv="fade"><span class="dot"></span> Cổng Tam quan</div>
+    <h1 class="display h-hero word-reveal" data-words>Nơi tĩnh lặng soi thấu điều chưa thấy.</h1>
+    <p class="hero-sub body" data-rv="up">Lịch, tử vi, bát tự, thần số, tướng số và nén nhang — gom về một ngôi chùa Việt dưới trăng.</p>
+    <p class="hero-hint" data-rv="up"><i></i> Chạm vào các điểm sáng trong cảnh để mở từng chương</p>
+  </div>
+  <div class="hero-spacer"></div>
+  <div class="hero-foot">
+    <div class="chapters" id="chips">
+      <a class="chip" href="#today"><span class="num">01</span><b>Hôm nay</b></a>
+      <a class="chip" href="#fortune"><span class="num">02</span><b>Vận trình</b></a>
+      <a class="chip" href="#charts"><span class="num">03</span><b>Lá số</b></a>
+      <a class="chip" href="#reading"><span class="num">04</span><b>Tướng số</b></a>
+      <a class="chip" href="#temple"><span class="num">05</span><b>Chùa online</b></a>
+      <a class="chip" href="#summary"><span class="num">06</span><b>Lá bùa</b></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 1 · today -->
+<section class="sec" id="today" data-fg-key="gate" data-cam="1">
+  <div class="sec-head" data-rv="fade"><span class="k"><b>01</b> — Hôm nay</span><span class="rule"></span><span class="k">Tam quan</span></div>
+  <div class="two">
+    <h2 class="display h-sec word-reveal" data-words>Một ngày, một nhịp thở.</h2>
+    <div>
+      <p class="lead" data-rv="up">Ngày dương, ngày âm, Can Chi, Trực, Sao và mười hai giờ trong ngày.
+        Ánh sáng của cảnh chùa đổi theo điểm của ngày.</p>
+    </div>
+  </div>
+  <div id="today-app" class="today"></div>
+  <div id="profile-app" class="profile"></div>
+</section>
+
+<!-- ============================================================ 2 · fortune -->
+<section class="sec" id="fortune" data-fg-key="pathways" data-cam="2">
+  <div class="sec-head" data-rv="fade"><span class="k"><b>02</b> — Vận trình</span><span class="rule"></span><span class="k">Vận số</span></div>
+  <div class="two">
+    <h2 class="display h-sec word-reveal" data-words>Tháng, năm và đường đời.</h2>
+    <div><p class="lead" data-rv="up">Lịch tô màu theo điểm từng ngày, biểu đồ mười hai tháng và dòng thời gian Đại vận. Có hồ sơ thì điểm được tính theo tuổi của bạn.</p></div>
+  </div>
+  <div id="fortune-app" class="fortune" aria-live="polite"><p class="t-load">Đang mở vận trình…</p></div>
+</section>
+
+<!-- ============================================================ 3 · charts -->
+<section class="sec" id="charts" data-fg-key="lessons" data-cam="3">
+  <div class="sec-head" data-rv="fade"><span class="k"><b>03</b> — Lá số</span><span class="rule"></span><span class="k">Mệnh bàn</span></div>
+  <div class="two">
+    <h2 class="display h-sec word-reveal" data-words>Bầu trời lúc bạn sinh ra.</h2>
+    <div>
+      <p class="lead" data-rv="up">Tử vi đẩu số, bát tự, bánh xe hoàng đạo và bảng thần số học nằm chung một chương.</p>
+      <p class="body" data-rv="up">Thần số học, cung hoàng đạo, bầu trời hôm nay, Bát tự, Tử vi đẩu số và vị trí các hành tinh nằm bên dưới.</p>
+    </div>
+  </div>
+  <div id="charts-app" class="charts" aria-live="polite"><p class="t-load">Đang mở lá số…</p></div>
+  <div id="batu-app" class="charts bt" aria-live="polite"></div>
+  <div id="tuvi-app" class="charts tv" aria-live="polite"></div>
+  <div id="planets-app" class="charts pl" aria-live="polite"></div>
+</section>
+
+<!-- ============================================================ 4 · reading -->
+<section class="sec" id="reading" data-fg-key="gate" data-cam="4">
+  <div class="sec-head" data-rv="fade"><span class="k"><b>04</b> — Tướng số</span><span class="rule"></span><span class="k">Tướng thuật</span></div>
+  <div id="vision-app" class="vision" data-rv="up"></div>
+</section>
+
+<!-- ============================================================ 5 · temple -->
+<section class="sec" id="temple" data-fg-key="pathways" data-cam="5">
+  <div class="sec-head" data-rv="fade"><span class="k"><b>05</b> — Chùa online</span><span class="rule"></span><span class="k">Chánh điện</span></div>
+  <div class="two">
+    <h2 class="display h-sec word-reveal" data-words>Thắp một nén nhang, lắng một nhịp mõ.</h2>
+    <div>
+      <p class="lead" data-rv="up">Trước chánh điện Diệu Giang Tự, lư hương đồng nhận nén nhang của bạn: khói bay lên, sổ nhang ghi lại chuỗi ngày.</p>
+      <ul class="list" data-rv="up">
+        <li>Thắp nhang 1, 3 hoặc 9 nén</li><li>Khấn nguyện và tường nguyện ẩn danh</li>
+        <li>Gõ mõ, rung chuông, niệm 108</li><li>Xin xăm một trong 100 quẻ</li>
+      </ul>
+      </div>
+  </div>
+  <div id="temple-app" class="temple-app" data-rv="up"></div>
+</section>
+
+<!-- ============================================================ 6 · summary -->
+<section class="sec fin" id="summary" data-fg-key="eternity" data-cam="6">
+  <div class="sec-head" data-rv="fade"><span class="k"><b>06</b> — Tổng kết</span><span class="rule"></span><span class="k">Lá bùa</span></div>
+  <h2 class="display h-fin" data-rv="up">Lá bùa của bạn</h2>
+  <p class="body-lg" data-rv="up">Các môn gặp nhau ở đây: một câu tóm tắt, điểm theo lĩnh vực, ba lời khuyên và dấu vết suy luận để bạn tự kiểm chứng.</p>
+  <div id="summary-app" class="summary"></div>
+</section>
+
+<!-- ============================================================ footer -->
+<footer class="foot" data-fg-key="foot" data-cam="6">
+  <p class="disclaimer">Nội dung mang tính tham khảo, giải trí và chiêm nghiệm văn hóa, không thay thế tư vấn y tế, pháp lý hay tài chính.</p>
+  <p class="foot-credit">© 2026 Diệu Giang Tự · Mô hình quần thể chùa: “Lukang Longshan Temple, Taiwan” của Fovea trên
+    <a href="https://sketchfab.com/3d-models/lukang-longshan-temple-taiwan-07dba0dafbdf4f5db2ed60e5f84c758d" target="_blank" rel="noopener">Sketchfab</a>,
+    giấy phép <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (chỉ dùng phi thương mại).</p>
+</footer>
+
+</main>
+
+<script type="module" src="js/main.js"></script>
+<noscript><p style="position:fixed;bottom:12px;left:12px;color:#e8eaf2">Trang cần bật JavaScript để hiện cảnh chùa ba chiều.</p></noscript>
 </body>
 </html>
