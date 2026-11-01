@@ -59,5 +59,21 @@ window.TEMPLE.avatars:
 - 3 nhóm: quà thường, quà hoa (tên quà có hoa/rose/lotus...), quà lớn (từ 1000 kim cương). Xáo bài nên không lặp liên tiếp. Sửa câu ngay trong file (3 danh sách đầu).
 - Phím H: thử quà hoa. ?loichuc=0: tắt. ?capy=0.6: đổi độ cao phụ đề. ?voice=1: đọc thành tiếng nếu máy có giọng tiếng Việt.
 
+## HUD (Mục 5)
+- js/hud.js: lớp giao diện chồng đúng lên khung 9:16, né vùng TikTok che (đỉnh, đáy, mép phải).
+- Banner đầu trang: tên chùa + dòng hướng dẫn đổi luân phiên (sửa chữ ở CFG.TITLE và TIPS).
+- Bảng vàng công đức: top 5 người tặng nhiều kim cương nhất, lưu trong trình duyệt nên tải lại trang/OBS không mất. ?reset=1 xoá bảng.
+- Lời cầu: bình luận bắt đầu bằng "cầu", "xin", "nguyện", "con xin"... sẽ hiện lên màn hình. Mỗi người 1 lời / 30 giây, bỏ link, số điện thoại, từ thô tục (danh sách BLOCK trong hud.js). Phím L: thử.
+- Banner công đức lớn: quà từ 1000 kim cương. ?hud=0 tắt hết HUD. ?prayy=0.58 đổi độ cao lời cầu.
+- Chế độ thử (node server.js --demo) có bình luận cầu giả.
+
+## Đoán nam/nữ từ tên (Mục 4 bổ sung)
+- js/gioi-tinh.js: đoán giới tính từ tên. Avatar NAM (tóc ngắn, vai rộng, áo đậm hơn) hoặc NỮ (tóc dài + búi + mái, áo xoè, sáng hơn) sẽ tự bước lên thắp nhang theo đúng giới tính của người tặng.
+- Tên DỄ THƯƠNG -> nữ (Bé Bống, Thỏ Con, Kitty, Mochi, Công chúa...). Tên MẠNH MẼ, CÁ TÍNH -> nam (Sói, Hổ, Rồng, Boss, King, Sát thủ, Đại ca...).
+- Còn nhận: tên đệm Thị/Văn, xưng hô (chị/cô/bà/mẹ; anh/chú/ông/bố), tên Việt gõ không dấu, tên nước ngoài, emoji.
+- Tên trung tính (Minh, Hoàng Anh...) chọn theo mã băm của tên: cùng một người luôn ra cùng giới tính.
+- Thêm từ: sửa các danh sách đầu file gioi-tinh.js. Ép riêng một người: điền vào GHI_DE ở đầu file. Hoặc gọi TEMPLE.avatars.setGender('id', 'nam' | 'nu').
+- ?gt=1: hiện ký hiệu ♂/♀ trước tên trên bảng tên để kiểm tra. ?debug=1: in lý do đoán ra Console (F12).
+
 ## Tượng Phật
 Tượng dùng ảnh assets/phat.png (nền trong suốt). Muốn đổi tượng: thay file này bằng ảnh PNG nền trong suốt khác (giữ tên phat.png, tỉ lệ rộng/cao đổi ở STATUE_W trong main.js).

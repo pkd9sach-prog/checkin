@@ -92,7 +92,7 @@ async function startTikTok() {
 
 /* ------------------------------ chạy thử ------------------------------ */
 function startDemo() {
-  const names = ['Ngọc Lễ', 'Hoàng Anh', 'Minh Châu', 'Bé Mít', 'Thu Trang', 'Quốc Anh', 'Duy Bùi', 'Mỹ Đình', 'Lan Hương', 'Tuấn Kiệt', 'An Nhiên', 'Phú Bà Bình Dương', 'Khánh Ngọc', 'Hà My', 'Nguyễn Văn Thành Đạt'];
+  const names = ['Ngọc Lễ', 'Hoàng Anh', 'Minh Châu', 'Bé Mít', 'Thu Trang', 'Quốc Anh', 'Duy Bùi', 'Mỹ Đình', 'Lan Hương', 'Tuấn Kiệt', 'An Nhiên', 'Phú Bà Bình Dương', 'Khánh Ngọc', 'Hà My', 'Nguyễn Văn Thành Đạt', 'Sói Đơn Độc', 'Bé Bống', 'Boss Hùng', 'Kitty Pink', 'Mạnh Cường', 'Thỏ Con'];
   let n = 0;
   setInterval(() => {
     if (n >= 40) return; n++;
@@ -105,7 +105,13 @@ function startDemo() {
     const [name, diamonds] = gifts[Math.floor(Math.random() * gifts.length)];
     emitGift(u, { name, diamonds, count: 1 });
   }, 6000);
-  status('CHẾ ĐỘ THỬ: khán giả và quà giả.');
+  const prayers = ['cầu bình an cho gia đình', 'xin cho mẹ con luôn mạnh khỏe', 'nguyện cho mọi người an lạc', 'cầu cho con thi đỗ', 'cầu công việc thuận lợi'];
+  setInterval(() => {
+    if (!n) return;
+    const u = roster.get('d' + (1 + Math.floor(Math.random() * n))); if (!u) return;
+    emitChat(u, prayers[Math.floor(Math.random() * prayers.length)]);
+  }, 9000);
+  status('CHẾ ĐỘ THỬ: khán giả, quà và lời cầu giả.');
 }
 
 /* ------------------------ ảnh đại diện (proxy) ------------------------ */
